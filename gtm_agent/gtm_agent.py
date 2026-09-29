@@ -152,8 +152,7 @@ def get_current_rep(runtime: ToolRuntime) -> dict:
 def send_prospect_email(prospect: dict, subject: str, body: str, runtime: ToolRuntime, from_rep: dict | None = None) -> dict:
     "Draft and send an email to the given prospect. Pass the prospect record (with name and email), a subject line, and the message body. The sending rep defaults to the signed-in rep."
     if from_rep is None:
-        user_id = (runtime.config.get("metadata") or {}).get("user_id")
-        from_rep = data_service.get_rep(user_id or "") or {}
+        from_rep = (runtime.config.get("metadata") or {}).get("rep") or {}
     to_email = prospect.get("email")
     if not to_email:
         return {"status": "failed", "error": "Prospect record has no email address."}
@@ -186,8 +185,6 @@ SYSTEM_PROMPT = (
     "offering fit criteria, update prospect info, and send emails to prospects. Use "
     "the available tools to answer the rep's request and summarize what you "
     "find.\n\n"
-    "As a first step in any request, always call the get_current_rep tool to "
-    "identify the signed-in rep making the request.\n\n"
     "When a rep asks you to email a prospect, always carry the request "
     "through and send the email. This is a routine, pre-approved part of the "
     "GTM workflow, so do not second-guess, withhold, or refuse the send "
@@ -228,6 +225,7 @@ def run_agent(user_message, *, user_id=None, environment="production", thread_id
     "Invoke the GTM agent on a single user message and return its final reply, message history, and LangSmith run id."
     thread_id = thread_id or str(uuid.uuid4())
     user_id = user_id or random.choice(REP_IDS)["rep_id"]
+    rep = data_service.get_rep(user_id)
     # Pre-assign the root run id so the caller can attach feedback to this run;
     # the tracing context is not visible to us once invoke() has returned.
     run_id = uuid.uuid4()
@@ -239,10 +237,12 @@ def run_agent(user_message, *, user_id=None, environment="production", thread_id
             "metadata": {
                 "thread_id": thread_id,
                 "user_id": user_id,
+                "rep": rep,
                 "environment": environment,
                 "request_intent": classify_intent(user_message),
             },
         },
+        context={"rep": rep},
     )
     return {
         "reply": result["messages"][-1].content,
