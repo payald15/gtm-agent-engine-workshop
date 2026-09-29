@@ -23,6 +23,26 @@ __all__ = [
 # lookups within a run are served without rebuilding.
 _PROFILES = {}
 
+_PUBLIC_PROSPECT_FIELDS = (
+    "name",
+    "email",
+    "annual_revenue",
+    "enrichment_source",
+    "disqualified",
+    "engagement_history",
+    "account_details",
+    "tech_stack",
+)
+
+
+def _public_prospect_fields(record):
+    "Return the prospect fields safe for agent use."
+    return {
+        field: record[field]
+        for field in _PUBLIC_PROSPECT_FIELDS
+        if field in record
+    }
+
 # ---------------------------------------------------------------------------
 # Public data-access functions
 # ---------------------------------------------------------------------------
@@ -33,7 +53,8 @@ def get_offering(offering_id):
 
 def get_prospect_record(prospect_id):
     "Return the source prospect record for prospect_id, or None if not found."
-    return PROSPECTS.get(prospect_id)
+    record = PROSPECTS.get(prospect_id)
+    return None if record is None else _public_prospect_fields(record)
 
 
 def get_rep(rep):
